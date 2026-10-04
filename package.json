@@ -1,0 +1,35 @@
+{
+  "name": "tinix-inbox",
+  "version": "1.0.0",
+  "description": "Tinix Inbox — Omnichannel Messaging & Conversation Infrastructure",
+  "type": "module",
+  "main": "src/index.ts",
+  "scripts": {
+    "start": "node --experimental-strip-types src/index.ts",
+    "test": "node --experimental-strip-types --test tests/**/*.test.ts",
+    "typecheck": "tsc --noEmit",
+    "build": "tsc --noEmit && node --experimental-strip-types --test tests/**/*.test.ts",
+    "test:core": "node --experimental-strip-types --test tests/core/*.test.ts",
+    "test:persistence": "node --experimental-strip-types --test tests/persistence/*.test.ts",
+    "test:providers": "node --experimental-strip-types --test tests/providers/*.test.ts",
+    "test:e2e": "node --experimental-strip-types --test tests/e2e/*.test.ts",
+    "test:live-chatwoot": "node --env-file=.env --experimental-strip-types poc/chatwoot-v418/tinix-live-check.mjs",
+    "test:live-gemini": "node --env-file=.env --experimental-strip-types scripts/verify-live-gemini.mjs",
+    "backup": "node --experimental-strip-types scripts/sqlite-backup.mjs backup",
+    "drill:backup-restore": "node --experimental-strip-types scripts/sqlite-restore-drill.mjs"
+  },
+  "keywords": [
+    "tinix",
+    "inbox",
+    "chatwoot",
+    "meta",
+    "zalo",
+    "messaging"
+  ],
+  "author": "Tinix",
+  "license": "UNLICENSED",
+  "devDependencies": {
+    "@types/node": "^26.6.3",
+    "typescript": "^7.0.2"
+  }
+}

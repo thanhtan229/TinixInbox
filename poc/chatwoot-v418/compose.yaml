@@ -1,0 +1,87 @@
+name: tinix-chatwoot-v418-poc
+
+x-chatwoot: &chatwoot
+  image: chatwoot/chatwoot:v4.18.0-ce@sha256:faaa58a911cda8f2ab9d717ddf8ca4332163b07da4c5da10711d896e5d667442
+  env_file:
+    - .env
+  environment:
+    NODE_ENV: production
+    RAILS_ENV: production
+    INSTALLATION_ENV: docker
+  depends_on:
+    postgres:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+  restart: unless-stopped
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_DB: ${POSTGRES_DATABASE:-chatwoot}
+      POSTGRES_USER: ${POSTGRES_USERNAME:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Create a local .env first}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?Create a local .env first}
+    command: ["sh", "-c", "exec redis-server --appendonly yes --requirepass \"$$REDIS_PASSWORD\""]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" ping | grep -q PONG"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
+  web:
+    <<: *chatwoot
+    volumes:
+      - chatwoot_storage:/app/storage
+      - poc_config:/poc-state
+      - poc_credentials:/poc-credentials
+      - ./bootstrap-poc.rb:/poc/bootstrap-poc.rb:ro
+    ports:
+      - "127.0.0.1:${CHATWOOT_PORT:-3180}:3000"
+    entrypoint: docker/entrypoints/rails.sh
+    command: ["bundle", "exec", "rails", "s", "-p", "3000", "-b", "0.0.0.0"]
+
+  sidekiq:
+    <<: *chatwoot
+    volumes:
+      - chatwoot_storage:/app/storage
+    command: ["bundle", "exec", "sidekiq", "-C", "config/sidekiq.yml"]
+
+  callback-receiver:
+    image: node:22-alpine
+    working_dir: /poc
+    command: ["node", "receiver.mjs"]
+    env_file:
+      - .env
+    volumes:
+      - ./receiver.mjs:/poc/receiver.mjs:ro
+      - ./receiver-lib:/poc/receiver-lib:ro
+      - receiver_data:/data
+      - poc_config:/poc-state:ro
+    ports:
+      - "127.0.0.1:${CALLBACK_PORT:-3181}:3181"
+    restart: unless-stopped
+
+volumes:
+  chatwoot_storage:
+  postgres_data:
+  redis_data:
+  receiver_data:
+  poc_config:
+  poc_credentials:
